@@ -1,28 +1,35 @@
 """
-Examples for a feature class and its view provider.
-(c) 2009 Werner Mayer LGPL
+Honeycomb solid creator.
+(c) 2021 Christian González Di Antonio <christiangda@gmail.com>
 """
 
-__author__ = "Werner Mayer <wmayer@users.sourceforge.net>"
+__author__ = "Christian González Di Antonio <christiangda@gmail.com>"
+__title__ = "HoneycombSolid"
+__author__ = "Christian González Di Antonio"
+__url__ = "https://github.com/christiangda/freecad-macro-honeycomb"
+__Wiki__ = "https://github.com/mwganson/freecad-macro-honeycomb/blob/master/README.md"
+__date__ = "2021.01.03" #year.month.date
+__version__ = "v1.0.0"
 
 import FreeCAD, Part, math
 from FreeCAD import Base
 from pivy import coin
-import Draft, DraftTools
 
 class PartFeature:
 	def __init__(self, obj):
 		obj.Proxy = self
 
-class Box(PartFeature):
+class Honeycomb(PartFeature):
 	def __init__(self, obj):
 		PartFeature.__init__(self, obj)
-		''' Add some custom properties to our box feature '''
-		obj.addProperty("App::PropertyLength","Length","Box","Length of the box").Length=20.0
-		obj.addProperty("App::PropertyLength","Width","Box","Width of the box").Width=20.0
-		obj.addProperty("App::PropertyLength","Height","Box", "Height of the box").Height=2.0
+		''' Add some custom properties to our Honeycomb feature '''
+		obj.addProperty("App::PropertyLength","Length","Honeycomb","Length of the Honeycomb").Length=100.0
+		obj.addProperty("App::PropertyLength","Width","Honeycomb","Width of the Honeycomb").Width=100.0
+		obj.addProperty("App::PropertyLength","Height","Honeycomb", "Height of the Honeycomb").Height=5.0
 		
-		obj.addProperty("App::PropertyLength","Radius","Bolt","Radius of the inner circle").Radius=2.0
+		obj.addProperty("App::PropertyLength","Circumradius","Polygon","Radius of the inner circle").Circumradius=5.0
+        
+        #obj.addProperty("App::PropertyLength","Edges","Honeycomb","Poligon number of edges").Radius=6.0
 
 	def onChanged(self, fp, prop):
 		''' Print the name of the property that has changed '''
@@ -30,49 +37,99 @@ class Box(PartFeature):
 
 	def execute(self, fp):
 		''' Print a short message when doing a recomputation, this method is mandatory '''
-		FreeCAD.Console.PrintMessage("Recompute Python Box feature\n")
+		FreeCAD.Console.PrintMessage("Recompute Python Honeycomb feature\n")
 
 		length = fp.Length
 		width = fp.Width
 		height = fp.Height
-		radius = fp.Radius
+		radius = fp.Circumradius
+        
+		#edges = fp.Edges
+		edges = 6
 
-		# create container box solid
+        #######################################################################
+		# Container box, used to cut the polygon array
 		container = Part.makeBox(length,width,height)
 
-		# create exagon solid
-		polygon = []
-		edges = 6
+        #######################################################################
+		# create the first polygon
+		figure = []
 		m=Base.Matrix()
-
-		m.rotateZ(math.radians(360.0/edges))
+		edges_angle = math.radians(360.0/edges)
+		m.rotateZ(edges_angle)
 		v=Base.Vector(radius,0,0)
 
 		for i in range(edges):
-			polygon.append(v)
+			figure.append(v)
 			v = m.multiply(v)
 
-		polygon.append(v)
-		exa = Part.makePolygon(polygon)
+		figure.append(v)
+		polygon = Part.makePolygon(figure)
 
-		# move to the center of the container box		
-		exa.translate(Base.Vector(length/2, width/2, 0))
+		# move it to the center of the container box	
+		polygon.translate(Base.Vector(length/2, width/2, 0))
 
-		exa2 = exa.copy()
-		exa2.translate(Base.Vector(length/3, width/3, 0))
+		# create a face for the first polygon
+		f1=Part.Face([polygon])
+
+		#######################################################################
+		# create copies of poligon using radial pattern
+
+		# calculate how many circunferencias needs to cover the maximun length of the container box
+		iters = int(math.floor(math.sqrt(length**2 + width**2)/radius/2)/2 +1)
+		FreeCAD.Console.PrintMessage("Iteractions: " + str(iters) + "\n")
+
+		# To store all the poligons face
+		e_faces = []
+		e_faces.append(f1) # add the first one created before
+
+		# Iterate over each imaginary circle which circunference contains the center of the polygon circle 
+		for i in range(1, iters):
+
+			# over each iterations the number of polygons increase the double,
+			# the angles are divided by 2 and the imaginary circunferences are the 2*radius multiplied by i
+			elements = i*edges
+			angle = edges_angle/i
+			distance = i*2*radius
+
+			# to relocate each new copy of the polygon
+			support_matrix=Base.Matrix()
+			
+			# different angle to start paste the copies base on iteration
+			if i%2 == 0:
+				init_angle = 0
+			else:
+				init_angle = math.radians(30)
+            
+			# tell the matrix we are working on xy
+			support_matrix.rotateZ(angle)
+
+			# calculate the center of the new copy of the polygon at the same imaginary circunference (same distance from x,y,0)
+			x_origin =distance*math.cos(init_angle)
+			y_origin = distance*math.sin(init_angle)
+			v1=Base.Vector(x_origin, y_origin,0)
+			
+			# create copies and move to the right position
+			for j in range(elements):
+				polygon_copy = polygon.copy()
+				polygon_copy.translate(v1)		
+				fn=Part.Face([polygon_copy])
+				e_faces.append(fn)
 	
-		# create a face to be extrude
-		face=Part.Face([exa ,exa2])
+				# move to the next angle
+				v1 = support_matrix.multiply(v1)
 
-		extrudedHexagon = face.extrude(Base.Vector(0,0,height))
+		# join all the faces
+		mshell = Part.makeShell(e_faces)
+		extruded_polygon = mshell.extrude(Base.Vector(0,0,height))
 
-		# cut the container with the array
-		honeycomb = container.cut(extrudedHexagon)
+		# cut the array of solids using the container box
+		shape = container.cut(extruded_polygon)
 
-		fp.Shape = honeycomb
-		#fp.Shape = extrudedHexagon
+		fp.Shape = shape # comment it to see the array of solids
+		#fp.Shape = extruded_polygon # uncomment it to see the array of solids
 
-class ViewProviderBox:
+class ViewProviderHoneycomb:
 	def __init__(self, obj):
 		''' Set this object to the proxy object of the actual view provider '''
 		obj.Proxy = self
@@ -110,7 +167,7 @@ class ViewProviderBox:
 		'''
 		return """
 			/* XPM */
-			static const char * ViewProviderBox_xpm[] = {
+			static const char * ViewProviderHoneycomb_xpm[] = {
 			"16 16 6 1",
 			" 	c None",
 			".	c #141010",
@@ -150,10 +207,17 @@ class ViewProviderBox:
 		return None
 
 
-def makeBox():
-	a=FreeCAD.ActiveDocument.addObject("Part::FeaturePython","Box")
-	Box(a)
-	ViewProviderBox(a.ViewObject)
-	#○doc.recompute()
+def makeHoneycomb():
+	if FreeCAD.ActiveDocument is None:
+		doc=FreeCAD.newDocument()
+	else:
+		doc = FreeCAD.ActiveDocument
 
-makeBox()
+	a=FreeCAD.ActiveDocument.addObject("Part::FeaturePython","Honeycomb")
+	Honeycomb(a)
+	ViewProviderHoneycomb(a.ViewObject)
+	doc.recompute()
+	Gui.SendMsgToActiveView("ViewFit")
+
+
+makeHoneycomb()
