@@ -47,11 +47,11 @@ class Honeycomb(PartFeature):
 		#edges = fp.Edges
 		edges = 6
 
-        #######################################################################
+		#######################################################################
 		# Container box, used to cut the polygon array
 		container = Part.makeBox(length,width,height)
 
-        #######################################################################
+		#######################################################################
 		# create the first polygon
 		figure = []
 		m=Base.Matrix()
