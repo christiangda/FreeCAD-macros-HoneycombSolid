@@ -8,8 +8,8 @@ __title__ = "HoneycombSolid"
 __author__ = "Christian González Di Antonio"
 __url__ = "https://github.com/christiangda/freecad-macro-honeycomb"
 __Wiki__ = "https://github.com/mwganson/freecad-macro-honeycomb/blob/master/README.md"
-__date__ = "2021.01.03" #year.month.date
-__version__ = "v1.0.0"
+__date__ = "2021.01.16" #year.month.date
+__version__ = "v1.0.1"
 
 import FreeCAD, Part, math
 from FreeCAD import Base
@@ -22,14 +22,16 @@ class PartFeature:
 class Honeycomb(PartFeature):
 	def __init__(self, obj):
 		PartFeature.__init__(self, obj)
-		''' Add some custom properties to our Honeycomb feature '''
+		''' Custom properties of Honeycomb feature '''
 		obj.addProperty("App::PropertyLength","Length","Honeycomb","Length of the Honeycomb").Length=100.0
 		obj.addProperty("App::PropertyLength","Width","Honeycomb","Width of the Honeycomb").Width=100.0
-		obj.addProperty("App::PropertyLength","Height","Honeycomb", "Height of the Honeycomb").Height=5.0
+		obj.addProperty("App::PropertyLength","Height","Honeycomb", "Height of the Honeycomb").Height=2.0
 		
 		obj.addProperty("App::PropertyLength","Circumradius","Polygon","Radius of the inner circle").Circumradius=5.0
+        	#obj.addProperty("App::PropertyLength","Edges","Polygon","Poligon number of edges").Edges=6.0
+
+		obj.addProperty("App::PropertyLength","Tickness","Walls","Tickness of the honeycomb walls").Tickness=1.0
         
-        #obj.addProperty("App::PropertyLength","Edges","Honeycomb","Poligon number of edges").Radius=6.0
 
 	def onChanged(self, fp, prop):
 		''' Print the name of the property that has changed '''
@@ -43,15 +45,17 @@ class Honeycomb(PartFeature):
 		width = fp.Width
 		height = fp.Height
 		radius = fp.Circumradius
+		tickness = fp.Tickness
         
+	
 		#edges = fp.Edges
 		edges = 6
 
-        #######################################################################
+		#######################################################################
 		# Container box, used to cut the polygon array
 		container = Part.makeBox(length,width,height)
 
-        #######################################################################
+		#######################################################################
 		# create the first polygon
 		figure = []
 		m=Base.Matrix()
@@ -76,55 +80,60 @@ class Honeycomb(PartFeature):
 		# create copies of poligon using radial pattern
 
 		# calculate how many circunferencias needs to cover the maximun length of the container box
-		iters = int(math.floor(math.sqrt(length**2 + width**2)/radius/2)/2 +1)
-		FreeCAD.Console.PrintMessage("Iteractions: " + str(iters) + "\n")
-
+		n_cols = math.ceil( (length / (radius + tickness) / 2) )
+		n_rows = math.ceil( (width / (radius + tickness) / 2) + 3)
+		FreeCAD.Console.PrintMessage("n_cols: " + str(n_cols) + " n_rows: " + str(n_rows) + "\n")
+	
 		# To store all the poligons face
 		e_faces = []
 		e_faces.append(f1) # add the first one created before
 
 		# Iterate over each imaginary circle which circunference contains the center of the polygon circle 
-		for i in range(1, iters):
+		for column in range(-n_cols, n_cols):
+			for row in range(-n_rows, n_rows):
+				# omit the first
+				if (column != 0) or (row != 0):
+					if column % 2 != 0:
+					# odd
+						if row % 2 != 0:
+						# odd
+							centers_distance = tickness + 2 * radius * math.sin(edges_angle)
+							x_delta = centers_distance *  math.sin(edges_angle)
+							y_delta = centers_distance * math.cos(edges_angle)
 
-			# over each iterations the number of polygons increase the double,
-			# the angles are divided by 2 and the imaginary circunferences are the 2*radius multiplied by i
-			elements = i*edges
-			angle = edges_angle/i
-			distance = i*2*radius
+							x_origin = column * x_delta 
+							y_origin = row * y_delta
+		
+							delta_x_y = Base.Vector(x_origin, y_origin,0)
+		
+							polygon_copy = polygon.copy()
+							polygon_copy.translate(delta_x_y)		
+							fn=Part.Face([polygon_copy])
+							e_faces.append(fn)
 
-			# to relocate each new copy of the polygon
-			support_matrix=Base.Matrix()
-			
-			# different angle to start paste the copies base on iteration
-			if i%2 == 0:
-				init_angle = 0
-			else:
-				init_angle = math.radians(30)
-            
-			# tell the matrix we are working on xy
-			support_matrix.rotateZ(angle)
-
-			# calculate the center of the new copy of the polygon at the same imaginary circunference (same distance from x,y,0)
-			x_origin =distance*math.cos(init_angle)
-			y_origin = distance*math.sin(init_angle)
-			v1=Base.Vector(x_origin, y_origin,0)
-			
-			# create copies and move to the right position
-			for j in range(elements):
-				polygon_copy = polygon.copy()
-				polygon_copy.translate(v1)		
-				fn=Part.Face([polygon_copy])
-				e_faces.append(fn)
-	
-				# move to the next angle
-				v1 = support_matrix.multiply(v1)
+					else:
+					# even
+						if row <= (n_rows/2) and row >= (-n_rows/2):
+							centers_distance = tickness + 2 * radius * math.sin(edges_angle)
+							x_delta = centers_distance  * math.sin(edges_angle)
+							y_delta = centers_distance
+							
+							x_origin = column * x_delta 
+							y_origin = row * y_delta
+		
+							delta_x_y = Base.Vector(x_origin, y_origin,0)
+		
+							polygon_copy = polygon.copy()
+							polygon_copy.translate(delta_x_y)		
+							fn=Part.Face([polygon_copy])
+							e_faces.append(fn)
 
 		# join all the faces
 		mshell = Part.makeShell(e_faces)
 		extruded_polygon = mshell.extrude(Base.Vector(0,0,height))
 
 		# cut the array of solids using the container box
-		shape = container.cut(extruded_polygon)
+		shape = container.cut(extruded_polygon) # comment it to see the array of solids
 
 		fp.Shape = shape # comment it to see the array of solids
 		#fp.Shape = extruded_polygon # uncomment it to see the array of solids
