@@ -1,5 +1,5 @@
 """
-Honeycomb solid creator.
+HoneycombSolid --> Honeycomb solid creator.
 (c) 2021 Christian González Di Antonio <christiangda@gmail.com>
 """
 
@@ -11,7 +11,7 @@ __Wiki__ = "https://github.com/mwganson/freecad-macro-honeycomb/blob/master/READ
 __date__ = "2021.01.16" #year.month.date
 __version__ = "v1.0.1"
 
-import FreeCAD, Part, math
+import FreeCAD, Part, PartGui, math 
 from FreeCAD import Base
 from pivy import coin
 
@@ -19,7 +19,7 @@ class PartFeature:
 	def __init__(self, obj):
 		obj.Proxy = self
 
-class Honeycomb(PartFeature):
+class HoneycombSolid(PartFeature):
 	def __init__(self, obj):
 		PartFeature.__init__(self, obj)
 		''' Custom properties of Honeycomb feature '''
@@ -39,7 +39,7 @@ class Honeycomb(PartFeature):
 
 	def execute(self, fp):
 		''' Print a short message when doing a recomputation, this method is mandatory '''
-		FreeCAD.Console.PrintMessage("Recompute Python Honeycomb feature\n")
+		FreeCAD.Console.PrintMessage("Recompute Python HoneycombSolid feature\n")
 
 		length = fp.Length
 		width = fp.Width
@@ -82,7 +82,7 @@ class Honeycomb(PartFeature):
 		# calculate how many circunferencias needs to cover the maximun length of the container box
 		n_cols = math.ceil( (length / (radius + tickness) / 2) )
 		n_rows = math.ceil( (width / (radius + tickness) / 2) + 3)
-		FreeCAD.Console.PrintMessage("n_cols: " + str(n_cols) + " n_rows: " + str(n_rows) + "\n")
+		# FreeCAD.Console.PrintMessage("n_cols: " + str(n_cols) + " n_rows: " + str(n_rows) + "\n")
 	
 		# To store all the poligons face
 		e_faces = []
@@ -138,7 +138,7 @@ class Honeycomb(PartFeature):
 		fp.Shape = shape # comment it to see the array of solids
 		#fp.Shape = extruded_polygon # uncomment it to see the array of solids
 
-class ViewProviderHoneycomb:
+class ViewProviderHoneycombSolid:
 	def __init__(self, obj):
 		''' Set this object to the proxy object of the actual view provider '''
 		obj.Proxy = self
@@ -176,7 +176,7 @@ class ViewProviderHoneycomb:
 		'''
 		return """
 			/* XPM */
-			static const char * ViewProviderHoneycomb_xpm[] = {
+			static const char * ViewProviderHoneycombSolid_xpm[] = {
 			"16 16 6 1",
 			" 	c None",
 			".	c #141010",
@@ -216,17 +216,18 @@ class ViewProviderHoneycomb:
 		return None
 
 
-def makeHoneycomb():
-	if FreeCAD.ActiveDocument is None:
-		doc=FreeCAD.newDocument()
-	else:
-		doc = FreeCAD.ActiveDocument
+def makeHoneycombSolid():
+	doc = FreeCAD.activeDocument()
 
-	a=FreeCAD.ActiveDocument.addObject("Part::FeaturePython","Honeycomb")
-	Honeycomb(a)
-	ViewProviderHoneycomb(a.ViewObject)
+	if doc is None:
+		doc = FreeCAD.newDocument()
+
+	obj = doc.addObject("Part::FeaturePython", "Honeycomb")
+	HoneycombSolid(obj)
+	ViewProviderHoneycombSolid(obj.ViewObject)
 	doc.recompute()
 	Gui.SendMsgToActiveView("ViewFit")
 
 
-makeHoneycomb()
+if __name__ == "__main__":
+	makeHoneycombSolid()
