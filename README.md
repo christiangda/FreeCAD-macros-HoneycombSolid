@@ -2,9 +2,15 @@
 
 This is a [FreeCAD](https://www.freecadweb.org/) [Macro](https://wiki.freecadweb.org/Macros) to create a parametric Honeycomb solid
 
-## Macro File
+## Official repository
+
+[https://github.com/FreeCAD/FreeCAD-macros](https://github.com/FreeCAD/FreeCAD-macros)
+[https://github.com/FreeCAD/FreeCAD-macros/tree/master/ParametricObjectCreation](https://github.com/FreeCAD/FreeCAD-macros/tree/master/ParametricObjectCreation)
+
+## Macro Files
 
 [Python file for HoneycombSolid.FCMacro](HoneycombSolid.FCMacro)
+[Python file for HoneycombSolid.py](HoneycombSolid.py)
 
 ## Sample Images
 
