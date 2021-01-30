@@ -30,5 +30,5 @@ if __name__ == '__main__':
 		app.Console.PrintError("Macro HoneycombSolid: failed to import Macro honeycomb_solid.honeycomb_solid.py. The parametric object will lose functionality after saving-loading your project, sorry.")
 	else:
 		from honeycomb_solid.honeycomb_solid import makeHoneycombSolid
-		makeHoneycombSolid()
+		makeHoneycombSolid(__Version__)
 		gui.SendMsgToActiveView("ViewFit")
