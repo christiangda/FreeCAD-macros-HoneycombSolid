@@ -3,13 +3,12 @@ HoneycombSolid --> Honeycomb solid creator.
 (c) 2021 Christian González Di Antonio <christiangda@gmail.com>
 """
 
-__version__ = "v1.0.2"
+__Version__ = "v1.0.3"
 
 import FreeCAD
 import Part
 import math 
 from FreeCAD import Base
-
 
 class HoneycombSolid:
 
@@ -19,7 +18,7 @@ class HoneycombSolid:
 		obj.addProperty("App::PropertyLength","Width","Honeycomb","Width of the Honeycomb").Width=100.0
 		obj.addProperty("App::PropertyLength","Height","Honeycomb", "Height of the Honeycomb").Height=2.0
 		obj.addProperty("App::PropertyLength","Circumradius","Polygon","Radius of the inner circle").Circumradius=5.0
-        	#obj.addProperty("App::PropertyLength","Edges","Polygon","Poligon number of edges").Edges=6.0
+        #obj.addProperty("App::PropertyLength","Edges","Polygon","Poligon number of edges").Edges=6.0
 		obj.addProperty("App::PropertyLength","Tickness","Walls","Tickness of the honeycomb walls").Tickness=1.0
 		obj.Proxy = self
 	
@@ -33,8 +32,6 @@ class HoneycombSolid:
 
 	def execute(self, fp):
 		''' Print a short message when doing a recomputation, this method is mandatory '''
-		FreeCAD.Console.PrintMessage("Recompute Python HoneycombSolid feature\n")
-
 		length = fp.Length
 		width = fp.Width
 		height = fp.Height
@@ -84,8 +81,9 @@ class HoneycombSolid:
 		# Iterate over each imaginary circle which circunference contains the center of the polygon circle 
 		for column in range(-n_cols, n_cols):
 			for row in range(-n_rows, n_rows):
-				# omit the first
-				if (column != 0) or (row != 0):
+				if (column == 0) and (row == 0):
+    				continue
+				else:
 					if column % 2 != 0:
 					# odd
 						if row % 2 != 0:
